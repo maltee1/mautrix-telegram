@@ -675,6 +675,7 @@ class Portal(DBPortal, BasePortal):
         # generation. If/when canonical DMs happen, this might not be necessary anymore.
         changed = await self._update_avatar_from_puppet(puppet, source, photo)
         changed = await self._update_title(puppet.displayname) or changed
+        changed = await self._update_topic_from_puppet(puppet, source) or changed
         if changed:
             await self.save()
             await self.update_bridge_info()
@@ -1199,6 +1200,18 @@ class Portal(DBPortal, BasePortal):
             return await self._update_avatar(user, photo=photo)
         else:
             return False
+        
+    async def _update_topic_from_puppet(self, puppet: p.Puppet, user: au.AbstractUser) -> bool:
+        contact_info = puppet.contact_info
+        phone = contact_info["phone"]
+        username = contact_info["username"]
+        about = (phone + "\n") if phone else "" + username
+        if self.about != about:
+            self.about = about
+            self.main_intent.set_room_topic(self.mxid, about)
+            return True
+        return False
+            
 
     async def _update_avatar(
         self,

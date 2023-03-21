@@ -915,6 +915,10 @@ class User(DBUser, AbstractUser, BaseUser):
                 return
             self._portals_cache[portal.tgid_full] = portal
         await super().register_portal(portal.tgid, portal.tg_receiver)
+        self._portals_cache = {
+            (tgid, tg_receiver): await po.Portal.get_by_tgid(tgid, tg_receiver=tg_receiver)
+            for tgid, tg_receiver in await self.get_portals()
+        }
 
     async def unregister_portal(self, tgid: TelegramID, tg_receiver: TelegramID) -> None:
         self.log.trace(f"Unregistering portal {(tgid, tg_receiver)}")

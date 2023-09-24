@@ -3666,6 +3666,33 @@ class Portal(DBPortal, BasePortal):
                 TextMessageEventContent(msgtype=MessageType.EMOTE, body=f"started a {call_type}"),
             )
 
+    async def handle_call_member_event(self, sender: UserID, event_id: EventID) -> None:
+        if not self.is_direct:
+            return
+        other_user = await self.get_dm_puppet()
+        sender = await u.User.get_by_mxid(sender)
+        token = other_user.client.api.token
+        ec_url = "call.element.io"
+        join_link = f"{ec_url}/room?&hideHeader=&userId={other_user.default_mxid}&roomId={self.mxid}&lang=en-us&fontScale=1&token={token}"
+        client = sender.client
+        sender_id = sender.tgid
+        message, entities = await formatter.matrix_to_telegram(client, text=join_link)
+        async with self.send_lock(sender_id):
+            lp = self.get_config("telegram_link_preview")
+            response = await self.bot.client.send_message(
+                self.peer, message, formatting_entities=entities
+            )
+            await self._mark_matrix_handled(
+                sender=sender,
+                sender_tgid=sender_id,
+                event_type=EventType.ROOM_MESSAGE,
+                event_id=event_id,
+                space=sender_id,
+                edit_index=0,
+                response=response,
+                msgtype=content.msgtype,
+            )
+
     async def handle_telegram_action(
         self, source: au.AbstractUser, sender: p.Puppet | None, update: MessageService
     ) -> None:

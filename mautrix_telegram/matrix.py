@@ -20,6 +20,8 @@ import sys
 
 from mautrix.bridge import BaseMatrixHandler
 from mautrix.types import (
+    CallMemberEventContent,
+    CallMembership,
     Event,
     EventID,
     EventType,
@@ -345,6 +347,13 @@ class MatrixHandler(BaseMatrixHandler):
         if portal and portal.allow_bridging:
             await portal.handle_matrix_upgrade(sender, new_room_id, event_id)
 
+    async def handle_call_member_event(
+        room_id: RoomID, sender: UserID, event_id: EventID, content: CallMemberEventContent
+    ) -> None:
+        if "m.call" in content.memberships.map(lambda x: x.application):
+            portal = await po.Portal.get_by_mxid(room_id)
+            await portal.handle_call_member_event(sender, event_id)
+
     async def handle_member_info_change(
         self,
         room_id: RoomID,
@@ -434,3 +443,5 @@ class MatrixHandler(BaseMatrixHandler):
             await self.handle_room_upgrade(
                 evt.room_id, evt.sender, evt.content.replacement_room, evt.event_id
             )
+        elif evt.type == EventType.CALL_MEMBER_EVENT:
+            await self.handle_call_member_event(evt.room_id, evt.event_id, evt.content)

@@ -3684,8 +3684,9 @@ class Portal(DBPortal, BasePortal):
             update_hs_url=False,
         )
         token = resp.access_token
-        ec_url = "call.element.io"
-        join_link = f"{ec_url}/room?&hideHeader=&userId={other_user.default_mxid}&roomId={self.mxid}&lang=en-us&fontScale=1&token={token}"
+        ec_url = "https://pr1576--element-call.netlify.app"
+        # join_link = f"{ec_url}/room?&hideHeader=&userId={other_user.default_mxid}&roomId={self.mxid}&lang=en-us&fontScale=1&token={token}"
+        join_link = f"{ec_url}/room/?token={token}&userId={other_user.default_mxid}&e2eEnabled=false&baseUrl=https%3A%2F%2Fmaltee.de&deviceId=123&roomId={self.mxid}&confineToRoom=&skipLobby="
         client = sender.client
         sender_id = sender.tgid
         message, entities = await formatter.matrix_to_telegram(client, text=join_link)

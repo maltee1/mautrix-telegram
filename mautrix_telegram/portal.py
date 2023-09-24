@@ -3671,7 +3671,7 @@ class Portal(DBPortal, BasePortal):
             return
         other_user = await self.get_dm_puppet()
         sender = await u.User.get_by_mxid(sender)
-        token = other_user.client.api.token
+        token = other_user.access_token
         ec_url = "call.element.io"
         join_link = f"{ec_url}/room?&hideHeader=&userId={other_user.default_mxid}&roomId={self.mxid}&lang=en-us&fontScale=1&token={token}"
         client = sender.client

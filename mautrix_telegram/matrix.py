@@ -350,7 +350,7 @@ class MatrixHandler(BaseMatrixHandler):
     async def handle_call_member_event(
         room_id: RoomID, sender: UserID, event_id: EventID, content: CallMemberEventContent
     ) -> None:
-        if "m.call" in content.memberships.map(lambda x: x.application):
+        if content.memberships and "m.call" in map(lambda x: x.application, content.memberships):
             portal = await po.Portal.get_by_mxid(room_id)
             await portal.handle_call_member_event(sender, event_id)
 
@@ -444,4 +444,4 @@ class MatrixHandler(BaseMatrixHandler):
                 evt.room_id, evt.sender, evt.content.replacement_room, evt.event_id
             )
         elif evt.type == EventType.CALL_MEMBER_EVENT:
-            await self.handle_call_member_event(evt.room_id, evt.event_id, evt.content)
+            await self.handle_call_member_event(evt.room_id, evt.sender, evt.event_id, evt.content)

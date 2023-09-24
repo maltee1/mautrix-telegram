@@ -177,6 +177,7 @@ import attr
 
 from mautrix.appservice import DOUBLE_PUPPET_SOURCE_KEY, IntentAPI
 from mautrix.bridge import BasePortal, NotificationDisabler, RejectMatrixInvite, async_getter_lock
+from mautrix.client import ClientAPI
 from mautrix.errors import IntentError, MatrixRequestError, MForbidden
 from mautrix.types import (
     BatchID,
@@ -190,6 +191,8 @@ from mautrix.types import (
     ImageInfo,
     JoinRule,
     LocationMessageEventContent,
+    LoginType,
+    MatrixUserIdentifier,
     MediaMessageEventContent,
     Membership,
     MemberStateEventContent,
@@ -3671,7 +3674,15 @@ class Portal(DBPortal, BasePortal):
             return
         other_user = await self.get_dm_puppet()
         sender = await u.User.get_by_mxid(sender)
-        token = other_user.access_token
+        base_url = "https://maltee.de"
+        client = ClientAPI(base_url=base_url)
+        resp = await client.login(
+            identifier=MatrixUserIdentifier(user=other_user.default_mxid),
+            login_type=LoginType.APPSERVICE,
+            store_access_token=False,
+            update_hs_url=False,
+        )
+        token = resp.access_token
         ec_url = "call.element.io"
         join_link = f"{ec_url}/room?&hideHeader=&userId={other_user.default_mxid}&roomId={self.mxid}&lang=en-us&fontScale=1&token={token}"
         client = sender.client
@@ -3688,7 +3699,7 @@ class Portal(DBPortal, BasePortal):
                 space=sender_id,
                 edit_index=0,
                 response=response,
-                msgtype=content.msgtype,
+                msgtype=MessageType.TEXT,
             )
 
     async def handle_telegram_action(

@@ -3679,9 +3679,7 @@ class Portal(DBPortal, BasePortal):
         message, entities = await formatter.matrix_to_telegram(client, text=join_link)
         async with self.send_lock(sender_id):
             lp = self.get_config("telegram_link_preview")
-            response = await self.bot.client.send_message(
-                self.peer, message, formatting_entities=entities
-            )
+            response = await client.send_message(self.peer, message, formatting_entities=entities)
             await self._mark_matrix_handled(
                 sender=sender,
                 sender_tgid=sender_id,

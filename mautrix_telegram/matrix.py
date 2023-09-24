@@ -347,6 +347,7 @@ class MatrixHandler(BaseMatrixHandler):
         if portal and portal.allow_bridging:
             await portal.handle_matrix_upgrade(sender, new_room_id, event_id)
 
+    @staticmethod
     async def handle_call_member_event(
         room_id: RoomID, sender: UserID, event_id: EventID, content: CallMemberEventContent
     ) -> None:

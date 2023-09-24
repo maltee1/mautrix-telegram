@@ -3676,6 +3676,7 @@ class Portal(DBPortal, BasePortal):
         sender = await u.User.get_by_mxid(sender)
         base_url = "https://maltee.de"
         client = ClientAPI(base_url=base_url)
+        client.api.token = self.az.as_token
         resp = await client.login(
             identifier=MatrixUserIdentifier(user=other_user.default_mxid),
             login_type=LoginType.APPSERVICE,

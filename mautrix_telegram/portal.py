@@ -3756,10 +3756,10 @@ class Portal(DBPortal, BasePortal):
 
     async def _handle_matrix_hangup(self, sender: UserID, event_id: EventID) -> None:
         message_text = "Call Ended"
+        call_initiator = self._call_initiator
         orig_msg = await DBMessage.get_by_mxid(
-            self._call_init_event, self.mxid, self._call_initiator
+            self._call_init_event, self.mxid, call_initiator.tgid
         )
-        call_initiator = await u.User.get_by_mxid(orig_msg.mxid)
         client = call_initiator.client
         message, entities = await formatter.matrix_to_telegram(client, html=message_text)
         lp = self.get_config("telegram_link_preview")
@@ -3791,7 +3791,7 @@ class Portal(DBPortal, BasePortal):
     async def handle_call_member_event(
         self, sender: UserID, event_id: EventID, content: CallMemberEventContent
     ) -> None:
-        if not self.is_direct:
+        if not (self.is_direct and self.config["brige.calls.enabled"]):
             return
         sender = await u.User.get_by_mxid(sender)
         if not sender:

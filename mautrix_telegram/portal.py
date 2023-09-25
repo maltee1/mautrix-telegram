@@ -3729,7 +3729,7 @@ class Portal(DBPortal, BasePortal):
         message, entities = await formatter.matrix_to_telegram(client, html=message_text)
         lp = self.get_config("telegram_link_preview")
         orig_msg = await DBMessage.get_by_mxid(content.get_edit(), self.mxid, space)
-        call_initiator = u.User.get_by_mxid(orig_msg.mxid)
+        call_initiator = await u.User.get_by_mxid(orig_msg.mxid)
         client = call_initiator.client
         resp = await client.edit_message(
             self.peer,
@@ -3755,7 +3755,7 @@ class Portal(DBPortal, BasePortal):
         message, entities = await formatter.matrix_to_telegram(client, html=message_text)
         lp = self.get_config("telegram_link_preview")
         orig_msg = await DBMessage.get_by_mxid(content.get_edit(), self.mxid, space)
-        call_initiator = u.User.get_by_mxid(orig_msg.mxid)
+        call_initiator = await u.User.get_by_mxid(orig_msg.mxid)
         client = call_initiator.client
         resp = await client.edit_message(
             self.peer,
@@ -3792,11 +3792,11 @@ class Portal(DBPortal, BasePortal):
             sender = await p.Puppet.get_by_mxid(sender)
         if content.memberships and "m.call" in map(lambda x: x.application, content.memberships):
             if isinstance(sender, u.User):
-                self._handle_initiate_call(sender, event_id)
+                await self._handle_initiate_call(sender, event_id)
             else:
-                self._handle_accept_call(sender, event_id)
+                await self._handle_accept_call(sender, event_id)
         else:
-            self._handle_matrix_hangup(sender, event_id)
+            await self._handle_matrix_hangup(sender, event_id)
 
     async def handle_telegram_action(
         self, source: au.AbstractUser, sender: p.Puppet | None, update: MessageService

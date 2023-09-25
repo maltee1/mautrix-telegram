@@ -351,9 +351,8 @@ class MatrixHandler(BaseMatrixHandler):
     async def handle_call_member_event(
         room_id: RoomID, sender: UserID, event_id: EventID, content: CallMemberEventContent
     ) -> None:
-        if content.memberships and "m.call" in map(lambda x: x.application, content.memberships):
-            portal = await po.Portal.get_by_mxid(room_id)
-            await portal.handle_call_member_event(sender, event_id)
+        portal = await po.Portal.get_by_mxid(room_id)
+        await portal.handle_call_member_event(sender, event_id, content)
 
     async def handle_member_info_change(
         self,

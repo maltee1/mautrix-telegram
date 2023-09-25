@@ -3756,7 +3756,9 @@ class Portal(DBPortal, BasePortal):
 
     async def _handle_matrix_hangup(self, sender: UserID, event_id: EventID) -> None:
         message_text = "Call Ended"
-        orig_msg = await DBMessage.get_by_mxid(self._call_init_event, self.mxid, space)
+        orig_msg = await DBMessage.get_by_mxid(
+            self._call_init_event, self.mxid, self._call_initiator
+        )
         call_initiator = await u.User.get_by_mxid(orig_msg.mxid)
         client = call_initiator.client
         message, entities = await formatter.matrix_to_telegram(client, html=message_text)

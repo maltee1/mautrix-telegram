@@ -337,19 +337,19 @@ bridge:
         # by sending a link to the remote platform user when a call is initiated using
         # MSC3401 that should let the Telegram user join using a single click. Only
         # supports outgoing calls in DMs, incoming calls and group calls are planned.
-        calls:
-            # Enable calling support via MSC 3401
-            # WARNING: The current implementation sends out access tokens for ghost
-            # users in plain text to the respective telegram chat. The user initiating
-            # the call can read this token using another Telegram client and may then
-            # impersonate the ghost user. In the future, we will hopefully be able to
-            # obtain tokens scoped to only the call. Do not activate if you don't trust
-            # every user on your bridge or if you have reasons to believe that the tokens
-            # may be leaked to and abused by a third party
-            enabled: false
-            # Element Call URL. Must be an instance of Element Call that features token
-            # login: https://github.com/vector-im/element-call/pull/1576
-            ec_url: https://call.example.com
+    calls:
+        # Enable calling support via MSC 3401
+        # WARNING: The current implementation sends out access tokens for ghost
+        # users in plain text to the respective telegram chat. The user initiating
+        # the call can read this token using another Telegram client and may then
+        # impersonate the ghost user. In the future, we will hopefully be able to
+        # obtain tokens scoped to only the call. Do not activate if you don't trust
+        # every user on your bridge or if you have reasons to believe that the tokens
+        # may be leaked to and abused by a third party
+        enabled: false
+        # Element Call URL. Must be an instance of Element Call that features token
+        # login: https://github.com/vector-im/element-call/pull/1576
+        ec_url: https://call.example.com
 
 
     # Whether to explicitly set the avatar and room name for private chat portal rooms.

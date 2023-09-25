@@ -3699,7 +3699,7 @@ class Portal(DBPortal, BasePortal):
             "e2eEnabled": "false",
             "baseUrl": base_url,
             "deviceId": device_id,
-            "room": self.mxid,
+            "roomId": self.mxid,
             "confineToRoom": "",
             "skipLobby": "",
         }
@@ -3755,6 +3755,8 @@ class Portal(DBPortal, BasePortal):
         self.log.debug("MSC 3401 call accepted by Telegram user")
 
     async def _handle_matrix_hangup(self, sender: UserID, event_id: EventID) -> None:
+        if not self._call_initiator:
+            return
         message_text = "Call Ended"
         call_initiator = self._call_initiator
         orig_msg = await DBMessage.get_by_mxid(
@@ -3786,12 +3788,13 @@ class Portal(DBPortal, BasePortal):
         client.logout()
         self._call_token = None
         self._call_init_event = None
+        self._call_initiator = None
         self.log.debug("MSC 3401 call has ended")
 
     async def handle_call_member_event(
         self, sender: UserID, event_id: EventID, content: CallMemberEventContent
     ) -> None:
-        if not (self.is_direct and self.config["brige.calls.enabled"]):
+        if not (self.is_direct and self.config["bridge.calls.enabled"]):
             return
         sender = await u.User.get_by_mxid(sender)
         if not sender:

@@ -333,6 +333,7 @@ class Portal(DBPortal, BasePortal):
 
     _call_init_event: EventID
     _call_token: str
+    _call_initiator: u.User
 
     def __init__(
         self,
@@ -3722,14 +3723,17 @@ class Portal(DBPortal, BasePortal):
                 msgtype=MessageType.TEXT,
             )
         self._call_init_event = event_id
+        self._call_initiator = sender
         self.log.debug("Attempting to initiate MSC 3401 call, call invite link sent to Telegram")
 
     async def _handle_accept_call(self, sender: p.Puppet, event_id: EventID) -> None:
         message_text = "Ongoing Call..."
         message, entities = await formatter.matrix_to_telegram(client, html=message_text)
         lp = self.get_config("telegram_link_preview")
-        orig_msg = await DBMessage.get_by_mxid(content.get_edit(), self.mxid, space)
-        call_initiator = await u.User.get_by_mxid(orig_msg.mxid)
+        call_initiator = self._call_initiator
+        orig_msg = await DBMessage.get_by_mxid(
+            self._call_init_event, self.mxid, call_initiator.tgid
+        )
         client = call_initiator.client
         resp = await client.edit_message(
             self.peer,
@@ -3752,11 +3756,11 @@ class Portal(DBPortal, BasePortal):
 
     async def _handle_matrix_hangup(self, sender: UserID, event_id: EventID) -> None:
         message_text = "Call Ended"
-        message, entities = await formatter.matrix_to_telegram(client, html=message_text)
-        lp = self.get_config("telegram_link_preview")
-        orig_msg = await DBMessage.get_by_mxid(content.get_edit(), self.mxid, space)
+        orig_msg = await DBMessage.get_by_mxid(self._call_init_event, self.mxid, space)
         call_initiator = await u.User.get_by_mxid(orig_msg.mxid)
         client = call_initiator.client
+        message, entities = await formatter.matrix_to_telegram(client, html=message_text)
+        lp = self.get_config("telegram_link_preview")
         resp = await client.edit_message(
             self.peer,
             orig_msg.tgid,

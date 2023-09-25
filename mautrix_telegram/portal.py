@@ -30,12 +30,13 @@ from collections import defaultdict
 from datetime import datetime
 from html import escape as escape_html
 from sqlite3 import IntegrityError
-from string import Template
+from string import Template, ascii_uppercase
 import asyncio
 import base64
 import itertools
 import random
 import time
+import urllib.parse
 
 from asyncpg import UniqueViolationError
 from telethon.errors import (
@@ -184,6 +185,7 @@ from mautrix.types import (
     BatchSendEvent,
     BatchSendStateEvent,
     BeeperMessageStatusEventContent,
+    CallMemberEventContent,
     ContentURI,
     EventID,
     EventType,
@@ -328,6 +330,9 @@ class Portal(DBPortal, BasePortal):
     _prev_reaction_poll: dict[UserID, float]
 
     _msg_conv: putil.TelegramMessageConverter
+
+    _call_init_event: EventID
+    _call_token: str
 
     def __init__(
         self,
@@ -3669,25 +3674,37 @@ class Portal(DBPortal, BasePortal):
                 TextMessageEventContent(msgtype=MessageType.EMOTE, body=f"started a {call_type}"),
             )
 
-    async def handle_call_member_event(self, sender: UserID, event_id: EventID) -> None:
-        if not self.is_direct:
-            return
+    async def _handle_initiate_call(self, sender: u.User, event_id: EventID) -> None:
         other_user = await self.get_dm_puppet()
-        sender = await u.User.get_by_mxid(sender)
-        base_url = "https://maltee.de"
+        base_url = self.config["homeserver.address"]
         client = ClientAPI(base_url=base_url)
         client.api.token = self.az.as_token
+        device_id = "call-" + "".join(random.choice(ascii_uppercase) for _ in range(8))
         resp = await client.login(
             identifier=MatrixUserIdentifier(user=other_user.default_mxid),
+            device_id=device_id,
             login_type=LoginType.APPSERVICE,
             store_access_token=False,
             update_hs_url=False,
         )
         token = resp.access_token
-        ec_url = "https://pr1576--element-call.netlify.app"
-        # join_link = f"{ec_url}/room?&hideHeader=&userId={other_user.default_mxid}&roomId={self.mxid}&lang=en-us&fontScale=1&token={token}"
-        join_link = f"{ec_url}/room/?token={token}&userId={other_user.default_mxid}&e2eEnabled=false&baseUrl=https%3A%2F%2Fmaltee.de&deviceId=123&roomId={self.mxid}&confineToRoom=&skipLobby="
-        message_text = f"Incoming Call. <h1><a href={join_link}>Accept</a></h1>"
+        self._call_token = token
+        ec_url = self.config["bridge.calls.ec_url"]
+        # ec_url = "https://pr1576--element-call.netlify.app"
+        # not sure if we need a random string here, but it feels wrong to use the same ID every time
+        params = {
+            "token": token,
+            "userId": other_user.default_mxid,
+            "e2eEnabled": "false",
+            "baseUrl": base_url,
+            "deviceId": device_id,
+            "room": self.mxid,
+            "confineToRoom": "",
+            "skipLobby": "",
+        }
+        # join_link = f"{ec_url}/room/?token={token}&userId={other_user.default_mxid}&e2eEnabled=false&baseUrl=https%3A%2F%2Fmaltee.de&deviceId=123&roomId={self.mxid}&confineToRoom=&skipLobby="
+        call_link = f"{ec_url}/room/?{urllib.parse.urlencode(params)}"
+        message_text = f"Incoming Call. <a href={call_link}>Accept</a>"
         client = sender.client
         sender_id = sender.tgid
         message, entities = await formatter.matrix_to_telegram(client, html=message_text)
@@ -3704,6 +3721,82 @@ class Portal(DBPortal, BasePortal):
                 response=response,
                 msgtype=MessageType.TEXT,
             )
+        self._call_init_event = event_id
+        self.log.debug("Attempting to initiate MSC 3401 call, call invite link sent to Telegram")
+
+    async def _handle_accept_call(self, sender: p.Puppet, event_id: EventID) -> None:
+        message_text = "Ongoing Call..."
+        message, entities = await formatter.matrix_to_telegram(client, html=message_text)
+        lp = self.get_config("telegram_link_preview")
+        orig_msg = await DBMessage.get_by_mxid(content.get_edit(), self.mxid, space)
+        call_initiator = u.User.get_by_mxid(orig_msg.mxid)
+        client = call_initiator.client
+        resp = await client.edit_message(
+            self.peer,
+            orig_msg.tgid,
+            message,
+            formatting_entities=entities,
+            link_preview=lp,
+        )
+        await self._mark_matrix_handled(
+            sender=call_initiator,
+            sender_tgid=call_initiator.tgid,
+            event_type=EventType.ROOM_MESSAGE,
+            event_id=event_id,
+            space=call_initiator.tgid,
+            edit_index=-1,
+            response=resp,
+            msgtype=MessageType.TEXT,
+        )
+        self.log.debug("MSC 3401 call accepted by Telegram user")
+
+    async def _handle_matrix_hangup(self, sender: UserID, event_id: EventID) -> None:
+        message_text = "Call Ended"
+        message, entities = await formatter.matrix_to_telegram(client, html=message_text)
+        lp = self.get_config("telegram_link_preview")
+        orig_msg = await DBMessage.get_by_mxid(content.get_edit(), self.mxid, space)
+        call_initiator = u.User.get_by_mxid(orig_msg.mxid)
+        client = call_initiator.client
+        resp = await client.edit_message(
+            self.peer,
+            orig_msg.tgid,
+            message,
+            formatting_entities=entities,
+            link_preview=lp,
+        )
+        await self._mark_matrix_handled(
+            sender=call_initiator,
+            sender_tgid=call_initiator.tgid,
+            event_type=EventType.ROOM_MESSAGE,
+            event_id=event_id,
+            space=call_initiator.tgid,
+            edit_index=-1,
+            response=resp,
+            msgtype=MessageType.TEXT,
+        )
+        base_url = self.config["homeserver.address"]
+        client = ClientAPI(base_url=base_url)
+        client.api.token = self._call_token
+        client.logout()
+        self._call_token = None
+        self._call_init_event = None
+        self.log.debug("MSC 3401 call has ended")
+
+    async def handle_call_member_event(
+        self, sender: UserID, event_id: EventID, content: CallMemberEventContent
+    ) -> None:
+        if not self.is_direct:
+            return
+        sender = await u.User.get_by_mxid(sender)
+        if not sender:
+            sender = await p.Puppet.get_by_mxid(sender)
+        if content.memberships and "m.call" in map(lambda x: x.application, content.memberships):
+            if isinstance(sender, u.User):
+                self._handle_initiate_call(sender, event_id)
+            else:
+                self._handle_accept_call(sender, event_id)
+        else:
+            self._handle_matrix_hangup(sender, event_id)
 
     async def handle_telegram_action(
         self, source: au.AbstractUser, sender: p.Puppet | None, update: MessageService

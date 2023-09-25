@@ -228,6 +228,9 @@ class Config(BaseBridgeConfig):
 
         copy("bridge.command_prefix")
 
+        copy("bridge.calls.enabled")
+        copy("bridge.calls.ec_url")
+
         migrate_permissions = (
             "bridge.permissions" not in self
             or "bridge.whitelist" in self

@@ -3726,33 +3726,35 @@ class Portal(DBPortal, BasePortal):
         self._call_initiator = sender
         self.log.debug("Attempting to initiate MSC 3401 call, call invite link sent to Telegram")
 
-    async def _handle_accept_call(self, sender: p.Puppet, event_id: EventID) -> None:
-        message_text = "Ongoing Call..."
-        message, entities = await formatter.matrix_to_telegram(client, html=message_text)
-        lp = self.get_config("telegram_link_preview")
-        call_initiator = self._call_initiator
-        orig_msg = await DBMessage.get_by_mxid(
-            self._call_init_event, self.mxid, call_initiator.tgid
-        )
-        client = call_initiator.client
-        resp = await client.edit_message(
-            self.peer,
-            orig_msg.tgid,
-            message,
-            formatting_entities=entities,
-            link_preview=lp,
-        )
-        await self._mark_matrix_handled(
-            sender=call_initiator,
-            sender_tgid=call_initiator.tgid,
-            event_type=EventType.ROOM_MESSAGE,
-            event_id=event_id,
-            space=call_initiator.tgid,
-            edit_index=-1,
-            response=resp,
-            msgtype=MessageType.TEXT,
-        )
-        self.log.debug("MSC 3401 call accepted by Telegram user")
+    # Matrix events from ghosts are seemingly discarded. Getting them may require error
+    # prone changes to mautrix, so we'll skip that for now.
+    # async def _handle_accept_call(self, sender: p.Puppet, event_id: EventID) -> None:
+    #     message_text = "Ongoing Call..."
+    #     message, entities = await formatter.matrix_to_telegram(client, html=message_text)
+    #     lp = self.get_config("telegram_link_preview")
+    #     call_initiator = self._call_initiator
+    #     orig_msg = await DBMessage.get_by_mxid(
+    #         self._call_init_event, self.mxid, call_initiator.tgid
+    #     )
+    #     client = call_initiator.client
+    #     resp = await client.edit_message(
+    #         self.peer,
+    #         orig_msg.tgid,
+    #         message,
+    #         formatting_entities=entities,
+    #         link_preview=lp,
+    #     )
+    #     await self._mark_matrix_handled(
+    #         sender=call_initiator,
+    #         sender_tgid=call_initiator.tgid,
+    #         event_type=EventType.ROOM_MESSAGE,
+    #         event_id=event_id,
+    #         space=call_initiator.tgid,
+    #         edit_index=-1,
+    #         response=resp,
+    #         msgtype=MessageType.TEXT,
+    #     )
+    #     self.log.debug("MSC 3401 call accepted by Telegram user")
 
     async def _handle_matrix_hangup(self, sender: UserID, event_id: EventID) -> None:
         if not self._call_initiator:
@@ -3797,13 +3799,8 @@ class Portal(DBPortal, BasePortal):
         if not (self.is_direct and self.config["bridge.calls.enabled"]):
             return
         sender = await u.User.get_by_mxid(sender)
-        if not sender:
-            sender = await p.Puppet.get_by_mxid(sender)
         if content.memberships and "m.call" in map(lambda x: x.application, content.memberships):
-            if isinstance(sender, u.User):
-                await self._handle_initiate_call(sender, event_id)
-            else:
-                await self._handle_accept_call(sender, event_id)
+            await self._handle_initiate_call(sender, event_id)
         else:
             await self._handle_matrix_hangup(sender, event_id)
 

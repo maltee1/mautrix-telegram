@@ -3702,6 +3702,7 @@ class Portal(DBPortal, BasePortal):
             "roomId": self.mxid,
             "confineToRoom": "",
             "skipLobby": "",
+            "appPrompt": "false",
         }
         # join_link = f"{ec_url}/room/?token={token}&userId={other_user.default_mxid}&e2eEnabled=false&baseUrl=https%3A%2F%2Fmaltee.de&deviceId=123&roomId={self.mxid}&confineToRoom=&skipLobby="
         call_link = f"{ec_url}/room/?{urllib.parse.urlencode(params)}"
